@@ -17,8 +17,17 @@ def getListOfFiles(dirName):
 
 # import latest dripinvesting excel file into pandas
 listOfFiles = getListOfFiles(dripinvesting_folder.as_posix())
-df = pd.read_excel(listOfFiles[0], sheet_name='All CCC')
 
-# drop first 4 rows
-df = df.drop(df.index[0:3])
+# read the excel file
+# combine rows 4-5 to be the header. By doing this the real pandas df will start from the header (and you don't need to drop rows..)
+df = pd.read_excel(listOfFiles[0], sheet_name='All CCC', header=[4,5]) 
+
+# drop last rows of summary where not individual companies are shown but sector performance
+df = df.dropna(subset=['Sector'])
+
+# list(df.columns.values)
+
+# print(df.columns.tolist())
+
+
 print(df)
