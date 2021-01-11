@@ -4,11 +4,11 @@ from dateutil.parser import parse as parsedate
 import pathlib
 import os
 import shutil
+import pandas as pd
 
 # path definitions
 python_repo_home_folder = pathlib.Path.home() / "Python" / "Python_repos" / "dividends"
 dripinvesting_folder = python_repo_home_folder / "excel_files" / "dripinvesting"
-
 
 # url and proxies definition
 url = "https://bit.ly/USDividendChampions1"
@@ -17,12 +17,12 @@ proxies = {
     'https' : 'proxy.threatpulse.net:8080',
 }
 
-response = requests.get(url, proxies=proxies)
 # get the time from response
+response = requests.get(url, proxies=proxies)
 url_time = response.headers['last-modified']
 url_date = parsedate(url_time)
 
-# create filename with date from url_date
+# create filename with exact date from url_date
 dripinvesting_filename = 'dividend_champions url_date_' + str(url_date)[:-15] + '.xls'
 dripinvesting_filepath = dripinvesting_folder / dripinvesting_filename
 
@@ -35,14 +35,11 @@ def getListOfFiles(dirName):
         if os.path.isfile(fullPath):
             allFiles.append(fullPath)       
     return allFiles     
-    
 listOfFiles = getListOfFiles(dripinvesting_folder.as_posix())
-
-# if there is only one excel file check whether it is older, than the url_date
-file_time_of_latest_downloaded_xls = datetime.datetime.fromtimestamp(os.path.getmtime(listOfFiles[0])).astimezone()
 
 # if there is only 1 xls file in the dividends folder AND the url_date is newer, than the file_date
 # then download new file
+file_time_of_latest_downloaded_xls = datetime.datetime.fromtimestamp(os.path.getmtime(listOfFiles[0])).astimezone()
 if (len(listOfFiles) == 1 & (url_date > file_time_of_latest_downloaded_xls)):
     # move obsolete file to the "obsolete folder"
     path_of_file = pathlib.Path(listOfFiles[0])
@@ -56,4 +53,5 @@ else:
     print("New dripinvesting file downloaded.")
     print("url_date:" + str(url_date))
     print("file_time: " + str(file_time_of_latest_downloaded_xls))
+
 
