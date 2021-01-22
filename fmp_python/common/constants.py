@@ -12,6 +12,7 @@ SUPPORTED_CATEGORIES = [
     'balance-sheet-statement',
     'cash-flow-statement',
     'ratios',
+    'ratios-ttm',
     'enterprise-values',
     'key-metrics',
     'financial-growth',
@@ -23,6 +24,7 @@ SUPPORTED_CATEGORIES = [
     'historical',
     'historical-chart',
     'historical-price-full',
+    'historical-price-full/stock_dividend',
     'stock-screener',
     'rss_feed',
     'sp500_constituent',
@@ -30,5 +32,6 @@ SUPPORTED_CATEGORIES = [
     'gainers',
     'losers',
     'market-hours',
-    'sectors-performance'
+    'sectors-performance',
+    'financial-statement-full-as-reported'
 ]

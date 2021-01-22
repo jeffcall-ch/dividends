@@ -3,6 +3,7 @@ import requests
 import os
 import io
 from datetime import datetime
+import json
 
 from fmp_python.common.constants import BASE_URL,INDEX_PREFIX
 from fmp_python.common.requestbuilder import RequestBuilder
@@ -22,7 +23,36 @@ class FMP(object):
         self.output_format = output_format
         self.write_to_file = write_to_file
         self.current_day = datetime.today().strftime('%Y-%m-%d')
+    
+    def get_dividends(self, symbol, reportType):
+        rb = RequestBuilder()
+        rb.set_category(reportType)
+        rb.add_sub_category(symbol)
+        quote = self.__do_request__(rb.compile_request())
 
+        response_text = quote.text
+        starter_char = response_text.find(" [ ")
+        end_char = response_text.find(" ]")
+
+        formatted_text = response_text[(starter_char):(end_char+2)].strip()
+        formatted_text.rstrip('\r\n')
+        formatted_text.lstrip('\r\n')
+        print (formatted_text)
+
+        formatted_json = json.loads(formatted_text)
+        df = pd.DataFrame(formatted_json)
+        return df
+    
+        
+    @FMPDecorator.write_to_file
+    @FMPDecorator.format_data
+    def get_data_from_api(self, symbol, reportType):
+        rb = RequestBuilder()
+        rb.set_category(reportType)
+        rb.add_sub_category(symbol)
+        quote = self.__do_request__(rb.compile_request())
+        return quote
+    
     @FMPDecorator.write_to_file
     @FMPDecorator.format_data
     def get_cash_flow_statement(self, symbol):
