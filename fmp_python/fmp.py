@@ -37,7 +37,7 @@ class FMP(object):
         formatted_text = response_text[(starter_char):(end_char+2)].strip()
         formatted_text.rstrip('\r\n')
         formatted_text.lstrip('\r\n')
-        print (formatted_text)
+        # print (formatted_text)
 
         formatted_json = json.loads(formatted_text)
         df = pd.DataFrame(formatted_json)
