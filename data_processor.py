@@ -13,6 +13,7 @@ class DataProcessor(object):
         self.today = datetime.today()
         self.this_year = self.today.year
         self.dividends_raw = self.get_dividends_raw()
+        self.real_time_price = self.get_real_time_price()
 
     def get_dividends_raw(self):
         # dividend, date  - historical dividend values and dates
@@ -21,7 +22,11 @@ class DataProcessor(object):
         # set proper DateTime object as the index of the dataframe
         self.dividends_raw['Datetime'] = pd.to_datetime(self.dividends_raw['date'])
         self.dividends_raw = self.dividends_raw.set_index('Datetime')
-        return self.dividends_raw        
+        return self.dividends_raw   
+
+    def get_real_time_price(self):
+        self.real_time_price = self.fmp.get_quote_short(self.ticker)
+        return self.real_time_price
 
     def get_dividends_per_year(self):
         # resample annually and sum dividend values. Note that year end (Dec 31) will be shown for all groups
@@ -58,17 +63,28 @@ class DataProcessor(object):
 
     def get_forward_dividend(self):
         # take last dividend paid and multiply it with the dividend payment frequency
+        last_dividend = self.dividends_raw.iloc[0]["adjDividend"]
+        if self.is_div_frequency_same_for_years(self.this_year, self.this_year-1):
+            return (last_dividend * self.get_dividend_frequency_of_prev_year())
+        else:
+            raise ValueError(f"Dividend frequency of ticker {self.ticker} for years {self.this_year} and {self.this_year-1} don't match. Further calculation is not possible!")
         
-        
+    def get_dividend_yield(self):
+        # returns dividend yield in %
+        return (self.get_forward_dividend() / self.real_time_price.iloc[0]["price"] * 100)
 
 
-dataproc = DataProcessor('O')
+
+dataproc = DataProcessor('AAPL')
 # print (dataproc.get_dividends_per_year())
 # print (dataproc.get_dividend_frequency_of_prev_year())
 # print (dataproc.get_dividend_dates_values_of_year("2020"))
 print (dataproc.get_dividend_months_of_year(2021))
 print (dataproc.get_dividend_months_of_year(2020))
 print (dataproc.is_div_frequency_same_for_years(2021, 2020))
+print (dataproc.get_forward_dividend())
+print (dataproc.get_dividend_yield())
+
 
 
     
