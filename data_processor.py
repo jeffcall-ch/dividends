@@ -73,6 +73,9 @@ class DataProcessor(object):
         # returns dividend yield in %
         return (self.get_forward_dividend() / self.real_time_price.iloc[0]["price"] * 100)
 
+    def get_dividend_growth_per_year(self):
+        pass
+
 
 
 dataproc = DataProcessor('AAPL')
