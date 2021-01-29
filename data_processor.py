@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from datetime import datetime
 from SP500_div_yield_crawler import SP500
+import numpy as np
 
 
 class DataProcessor(object):
@@ -21,6 +22,17 @@ class DataProcessor(object):
 
         # set proper DateTime object as the index of the dataframe
         self.dividends_raw['Datetime'] = pd.to_datetime(self.dividends_raw['date'])
+
+        try:
+            # find days difference between rows. Needed to see data gap (for instane AAPL dividends)
+            self.dividends_raw['Datetime_DaysDiffRows']=self.dividends_raw['Datetime'].diff().dt.days
+            # find if there is more than 365 days passed between rows. If that happens, delete all rows below
+            index_of_first_gap = np.where(self.dividends_raw['Datetime_DaysDiffRows'].lt(-365))[0][0]
+            self.dividends_raw = self.dividends_raw.iloc[:index_of_first_gap]
+        except: 
+            # no gaps found in datetime
+            pass
+        
         self.dividends_raw = self.dividends_raw.set_index('Datetime')
         return self.dividends_raw   
 
@@ -74,7 +86,19 @@ class DataProcessor(object):
         return (self.get_forward_dividend() / self.real_time_price.iloc[0]["price"] * 100)
 
     def get_dividend_growth_per_year(self):
-        pass
+        # get dividend growth per year
+        dividend_gr_per_yr = pd.DataFrame()
+        # remove current year line as it cannot be complete and we are interested in historical data
+
+        dividend_gr_per_yr['yearlyDividendValue'] = self.dividends_raw.resample("A")["adjDividend"].sum()
+        dividend_gr_per_yr['dividendGrowth'] = dividend_gr_per_yr.pct_change()
+        dividend_gr_per_yr = dividend_gr_per_yr.sort_index(ascending=False)
+
+        # mask out row of current year
+        mask = (dividend_gr_per_yr.index <= (str(self.this_year-1)+'-12-31'))
+        dividend_gr_per_yr_filtered=dividend_gr_per_yr.loc[mask]
+
+        return dividend_gr_per_yr_filtered
 
 
 
@@ -82,11 +106,12 @@ dataproc = DataProcessor('AAPL')
 # print (dataproc.get_dividends_per_year())
 # print (dataproc.get_dividend_frequency_of_prev_year())
 # print (dataproc.get_dividend_dates_values_of_year("2020"))
-print (dataproc.get_dividend_months_of_year(2021))
-print (dataproc.get_dividend_months_of_year(2020))
-print (dataproc.is_div_frequency_same_for_years(2021, 2020))
-print (dataproc.get_forward_dividend())
-print (dataproc.get_dividend_yield())
+# print (dataproc.get_dividend_months_of_year(2021))
+# print (dataproc.get_dividend_months_of_year(2020))
+# print (dataproc.is_div_frequency_same_for_years(2021, 2020))
+# print (dataproc.get_forward_dividend())
+# print (dataproc.get_dividend_yield())
+print (dataproc.get_dividend_growth_per_year())
 
 
 
