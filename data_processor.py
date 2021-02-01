@@ -100,9 +100,50 @@ class DataProcessor(object):
 
         return dividend_gr_per_yr_filtered
 
+    def get_most_recent_dividend_cut_year(self):
+        # result is the closest year from today when the dividend was cut last time. From that year he dividends are increasing again
+        # if there is a dividend cut, then the yearly dividend growth rate will contain a negative growth for the particular cut year
+        div_gr_per_year = self.get_dividend_growth_per_year()
+        index = div_gr_per_year.dividendGrowth.lt(0).idxmax()
+
+        # if index is the most recent date of the dataframe (first element), then set it to 1970-1-1 showing, that there was not a single cut in the dividends
+        # print (f"first valid index {div_gr_per_year.first_valid_index()}")
+        if index == div_gr_per_year.first_valid_index():
+            # if there is an unlikely event of the most recent year was a div cut (see ticker ABM), then return this most recent year
+            print (f"first element of div grwth rate {div_gr_per_year.iloc[0][1]}")
+            if div_gr_per_year.iloc[0][1] < 0:
+                return index
+            else:  
+                return datetime(1970, 1, 1)
+        return index
+
+    def get_DGR_3_5yr(self):
+        # calculate DGR1yr, DGR3yr, DGR5yr and potentially DGR10yr
+        # note, that CAGR calculation is used. http://www.moneychimp.com/features/cagr.htm
+        # give it current dividend, old dividend and number of years
+        # calculation gives uniform yearly growth value to reach final dividend
+        # note that dripinvesting has mistakes in their input data and they will not always match with this result
+        dividend_gr_per_yr = self.get_dividend_growth_per_year()
+        years_to_check = [3,5,10,15]
+        list_of_DGR = {}
+            
+        last_dividend_cut_year = self.get_most_recent_dividend_cut_year()
+        print (f"first dividend cut year index from today {last_dividend_cut_year}")
+        
+        for year in years_to_check:
+            mask = (dividend_gr_per_yr.index > (str(self.this_year-year)+'-01-01')) & (dividend_gr_per_yr.index <= (str(self.this_year-1)+'-12-31'))
+            dividends_gr_x_yr=dividend_gr_per_yr.loc[mask]
+            if len(dividends_gr_x_yr.index) == year and last_dividend_cut_year.year < (self.this_year-year) :
+                div_current = dividends_gr_x_yr.iloc[0]["yearlyDividendValue"]
+                div_old = dividends_gr_x_yr.iloc[-1]["yearlyDividendValue"]
+                cagr = (((div_current / div_old) ** (1/year)) - 1) * 100
+                print (f"year {year} div_current {div_current} div_old {div_old} cagr {cagr}")
+                list_of_DGR[year] = cagr
+        return (list_of_DGR)
 
 
-dataproc = DataProcessor('AAPL')
+
+dataproc = DataProcessor('ADM')
 # print (dataproc.get_dividends_per_year())
 # print (dataproc.get_dividend_frequency_of_prev_year())
 # print (dataproc.get_dividend_dates_values_of_year("2020"))
@@ -112,7 +153,8 @@ dataproc = DataProcessor('AAPL')
 # print (dataproc.get_forward_dividend())
 # print (dataproc.get_dividend_yield())
 print (dataproc.get_dividend_growth_per_year())
-
+print (dataproc.get_DGR_3_5yr())
+# print (dataproc.get_most_recent_dividend_cut_year())
 
 
     
