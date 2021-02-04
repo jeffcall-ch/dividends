@@ -4,9 +4,10 @@ import pandas as pd
 from datetime import datetime
 from SP500_div_yield_crawler import SP500
 import numpy as np
+import time
 
 
-class DataProcessor(object):
+class DividendProcessor(object):
     def __init__(self, ticker):
         self.ticker = ticker.upper()
         os.environ["FMP_API_KEY"] = "606d643d87241cde956b5cd85a3c56d1"
@@ -141,20 +142,55 @@ class DataProcessor(object):
                 list_of_DGR[year] = cagr
         return (list_of_DGR)
 
+list_of_tickers = ["ADP","ADM", "AFL", "ALB", "AOS", "APD", "AROW"]
+
+request_counter = 0
+start_time = time.time()
 
 
-dataproc = DataProcessor('ADM')
-# print (dataproc.get_dividends_per_year())
-# print (dataproc.get_dividend_frequency_of_prev_year())
-# print (dataproc.get_dividend_dates_values_of_year("2020"))
-# print (dataproc.get_dividend_months_of_year(2021))
-# print (dataproc.get_dividend_months_of_year(2020))
-# print (dataproc.is_div_frequency_same_for_years(2021, 2020))
-# print (dataproc.get_forward_dividend())
-# print (dataproc.get_dividend_yield())
-print (dataproc.get_dividend_growth_per_year())
-print (dataproc.get_DGR_3_5yr())
-# print (dataproc.get_most_recent_dividend_cut_year())
+for ticker in list_of_tickers:
+    request_start_time = time.time()
+    dataproc = DividendProcessor(ticker)
+    print (ticker)
+    # instantiating a DataProcessor class will make 2 requests
+    # https://financialmodelingprep.com/developer/docs/terms-of-service/ scroll to bottom
+    # 10 requests per second are allowed
+    request_counter += 2
+    if request_counter >= 10 :
+        request_counter = 0
+        print ("reached 10 requests")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        if (time.time() - start_time) < 1 :
+            print ("reached 10 requests waiting 1 second")
+            print("--- %s seconds ---" % (time.time() - start_time))
+            time.sleep(1)
+            start_time = time.time()
 
+
+    
+    """  print (dataproc.get_dividends_per_year())
+    print (dataproc.get_dividend_frequency_of_prev_year())
+    print (dataproc.get_dividend_dates_values_of_year("2020"))
+    print (dataproc.get_dividend_months_of_year(2021))
+    print (dataproc.get_dividend_months_of_year(2020))
+    print (dataproc.is_div_frequency_same_for_years(2021, 2020))
+    print (dataproc.get_forward_dividend())
+    print (dataproc.get_dividend_yield())
+    print (dataproc.get_dividend_growth_per_year())
+    print (dataproc.get_DGR_3_5yr())
+    print (dataproc.get_most_recent_dividend_cut_year()) """
+
+    dataproc.get_dividends_per_year()
+    dataproc.get_dividend_frequency_of_prev_year()
+    dataproc.get_dividend_dates_values_of_year("2020")
+    dataproc.get_dividend_months_of_year(2021)
+    dataproc.get_dividend_months_of_year(2020)
+    dataproc.is_div_frequency_same_for_years(2021, 2020)
+    dataproc.get_forward_dividend()
+    dataproc.get_dividend_yield()
+    dataproc.get_dividend_growth_per_year()
+    dataproc.get_DGR_3_5yr()
+    dataproc.get_most_recent_dividend_cut_year()
+    print (f"dividend request processed in: {time.time()-request_start_time}")
 
     
