@@ -15,7 +15,6 @@ class DividendProcessor(object):
         self.today = datetime.today()
         self.this_year = self.today.year
         self.dividends_raw = self.get_dividends_raw()
-        self.real_time_price = self.get_real_time_price()
 
     def get_dividends_raw(self):
         # dividend, date  - historical dividend values and dates
@@ -28,13 +27,18 @@ class DividendProcessor(object):
             # find days difference between rows. Needed to see data gap (for instane AAPL dividends)
             self.dividends_raw['Datetime_DaysDiffRows']=self.dividends_raw['Datetime'].diff().dt.days
             # find if there is more than 365 days passed between rows. If that happens, delete all rows below
-            index_of_first_gap = np.where(self.dividends_raw['Datetime_DaysDiffRows'].lt(-365))[0][0]
+            index_of_first_gap = np.where(self.dividends_raw['Datetime_DaysDiffRows'].lt(-400))[0][0]
             self.dividends_raw = self.dividends_raw.iloc[:index_of_first_gap]
         except: 
             # no gaps found in datetime
             pass
         
         self.dividends_raw = self.dividends_raw.set_index('Datetime')
+        self.dividends_raw["Symbol"] = self.ticker
+        # export to csv. Use header only for the first time, then only append new rows
+        # output_path = r'C:\Users\50000700\Python\Python_repos\dividends\excel_files\dividends_raw.csv'
+        # self.dividends_raw.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
+        print (self.dividends_raw)
         return self.dividends_raw   
 
     def get_real_time_price(self):
@@ -84,7 +88,12 @@ class DividendProcessor(object):
         
     def get_dividend_yield(self):
         # returns dividend yield in %
-        return (self.get_forward_dividend() / self.real_time_price.iloc[0]["price"] * 100)
+        self.real_time_price = self.get_real_time_price()
+        try: 
+            return (self.get_forward_dividend() / self.real_time_price.iloc[0]["price"] * 100)
+        except:
+            print ("No real time price data is available from API")
+            return -1
 
     def get_dividend_growth_per_year(self):
         # get dividend growth per year
@@ -142,55 +151,55 @@ class DividendProcessor(object):
                 list_of_DGR[year] = cagr
         return (list_of_DGR)
 
-list_of_tickers = ["ADP","ADM", "AFL", "ALB", "AOS", "APD", "AROW"]
+# list_of_tickers = ["ADP","ADM", "AFL", "ALB", "AOS", "APD", "AROW"]
+list_of_tickers = ["KO"]
 
 request_counter = 0
 start_time = time.time()
 
+# for ticker in list_of_tickers:
+#     request_start_time = time.time()
+#     dataproc = DividendProcessor(ticker)
+#     print (ticker)
+#     # instantiating a DataProcessor class will make 2 requests
+#     # https://financialmodelingprep.com/developer/docs/terms-of-service/ scroll to bottom
+#     # 10 requests per second are allowed
+#     request_counter += 2
+#     if request_counter >= 10 :
+#         request_counter = 0
+#         print ("reached 10 requests")
+#         print("--- %s seconds ---" % (time.time() - start_time))
+#         if (time.time() - start_time) < 1 :
+#             print ("reached 10 requests waiting 1 second")
+#             print("--- %s seconds ---" % (time.time() - start_time))
+#             time.sleep(1)
+#             start_time = time.time()
 
-for ticker in list_of_tickers:
-    request_start_time = time.time()
-    dataproc = DividendProcessor(ticker)
-    print (ticker)
-    # instantiating a DataProcessor class will make 2 requests
-    # https://financialmodelingprep.com/developer/docs/terms-of-service/ scroll to bottom
-    # 10 requests per second are allowed
-    request_counter += 2
-    if request_counter >= 10 :
-        request_counter = 0
-        print ("reached 10 requests")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        if (time.time() - start_time) < 1 :
-            print ("reached 10 requests waiting 1 second")
-            print("--- %s seconds ---" % (time.time() - start_time))
-            time.sleep(1)
-            start_time = time.time()
+#     dataproc.get_dividends_per_year()
+#     dataproc.get_dividend_frequency_of_prev_year()
+#     dataproc.get_dividend_dates_values_of_year("2020")
+#     dataproc.get_dividend_months_of_year(2021)
+#     dataproc.get_dividend_months_of_year(2020)
+#     dataproc.is_div_frequency_same_for_years(2021, 2020)
+#     dataproc.get_forward_dividend()
+#     dataproc.get_dividend_yield()
+#     dataproc.get_dividend_growth_per_year()
+#     dataproc.get_DGR_3_5yr()
+#     dataproc.get_most_recent_dividend_cut_year()
+#     print (f"dividend request processed in: {time.time()-request_start_time}")
 
 
-    
-    """  print (dataproc.get_dividends_per_year())
-    print (dataproc.get_dividend_frequency_of_prev_year())
-    print (dataproc.get_dividend_dates_values_of_year("2020"))
-    print (dataproc.get_dividend_months_of_year(2021))
-    print (dataproc.get_dividend_months_of_year(2020))
-    print (dataproc.is_div_frequency_same_for_years(2021, 2020))
-    print (dataproc.get_forward_dividend())
-    print (dataproc.get_dividend_yield())
-    print (dataproc.get_dividend_growth_per_year())
-    print (dataproc.get_DGR_3_5yr())
-    print (dataproc.get_most_recent_dividend_cut_year()) """
+dataproc = DividendProcessor('CZFS')
+print (f"dividends per year {dataproc.get_dividends_per_year()}")
+print (f"div freq per year {dataproc.get_dividend_frequency_of_prev_year()}")
+print (f"div dates of 2020 {dataproc.get_dividend_dates_values_of_year(2020)}")
+print (f"div months 2021 {dataproc.get_dividend_months_of_year(2021)}")
+print (f"div months 2020 {dataproc.get_dividend_months_of_year(2020)}")
+print (f"is freq same for 2021 and 2020 {dataproc.is_div_frequency_same_for_years(2021, 2020)}")
+print (f"forward dividend {dataproc.get_forward_dividend()}")
+print (f"dividend yield {dataproc.get_dividend_yield()}")
+print (f"div growth per year {dataproc.get_dividend_growth_per_year()}")
+print (f"DGR 3yr 5yr {dataproc.get_DGR_3_5yr()}")
+print (f"most recent div cut year {dataproc.get_most_recent_dividend_cut_year()}")
 
-    dataproc.get_dividends_per_year()
-    dataproc.get_dividend_frequency_of_prev_year()
-    dataproc.get_dividend_dates_values_of_year("2020")
-    dataproc.get_dividend_months_of_year(2021)
-    dataproc.get_dividend_months_of_year(2020)
-    dataproc.is_div_frequency_same_for_years(2021, 2020)
-    dataproc.get_forward_dividend()
-    dataproc.get_dividend_yield()
-    dataproc.get_dividend_growth_per_year()
-    dataproc.get_DGR_3_5yr()
-    dataproc.get_most_recent_dividend_cut_year()
-    print (f"dividend request processed in: {time.time()-request_start_time}")
-
-    
+  
