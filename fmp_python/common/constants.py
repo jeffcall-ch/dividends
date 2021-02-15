@@ -25,6 +25,7 @@ SUPPORTED_CATEGORIES = [
     'historical-chart',
     'historical-price-full',
     'historical-price-full/stock_dividend',
+    'historical-price-full/stock_split',
     'stock-screener',
     'rss_feed',
     'sp500_constituent',

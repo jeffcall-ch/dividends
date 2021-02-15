@@ -37,7 +37,9 @@ def getListOfFiles(dirName):
         fullPath = os.path.join(dirName, entry)
         if os.path.isfile(fullPath):
             allFiles.append(fullPath)       
-    return allFiles     
+    return allFiles   
+    
+      
 listOfFiles = getListOfFiles(dripinvesting_folder.as_posix())
 
 # if there is only 1 xls file in the dividends folder AND the url_date is newer, than the file_date

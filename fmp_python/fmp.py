@@ -11,6 +11,7 @@ from fmp_python.common.fmpdecorator import FMPDecorator
 from fmp_python.common.fmpvalidator import FMPValidator
 from fmp_python.common.fmpexception import FMPException
 
+
    
 """
 Base class that implements api calls 
@@ -24,7 +25,7 @@ class FMP(object):
         self.write_to_file = write_to_file
         self.current_day = datetime.today().strftime('%Y-%m-%d')
     
-    def get_dividends(self, symbol, reportType):
+    def get_dividends_and_stock_splits(self, symbol, reportType):
         rb = RequestBuilder()
         rb.set_category(reportType)
         rb.add_sub_category(symbol)
@@ -107,7 +108,6 @@ class FMP(object):
         rb.add_sub_category(symbol)
         hp = self.__do_request__(rb.compile_request())
         return hp
-
 
     def __do_request__(self,url):
         return requests.get(url)

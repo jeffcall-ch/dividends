@@ -35,22 +35,21 @@ df.columns = df.columns.map(lambda x: ''.join([*map(str, x)]))
 # drop last rows of summary where not individual companies are shown but sector performance
 df = df.dropna(subset=['TickerSector'])
 ticker_list = df['TickerSymbol'].tolist()
-# print (len(ticker_list))
 
 os.environ["FMP_API_KEY"] = "606d643d87241cde956b5cd85a3c56d1"
 fmp = FMP()
 
 def get_dividend_df_of(symbol):
     # dividend, date  - historical dividend values and dates
-    dividends_raw = fmp.get_dividends(symbol, 'historical-price-full/stock_dividend')
+    dividends_raw = fmp.get_dividends_and_stock_splits(symbol, 'historical-price-full/stock_dividend')
     # set proper DateTime object as the index of the dataframe
     dividends_raw['Datetime'] = pd.to_datetime(dividends_raw['date'])
   
     try:
         # find days difference between rows. Needed to see data gap (for instane AAPL dividends)
         dividends_raw['Datetime_DaysDiffRows']=dividends_raw['Datetime'].diff().dt.days
-        # find if there is more than 365 days passed between rows. If that happens, delete all rows below
-        index_of_first_gap = np.where(dividends_raw['Datetime_DaysDiffRows'].lt(-365))[0][0]
+        # find if there is more than 400 days passed between rows. If that happens, delete all rows below
+        index_of_first_gap = np.where(dividends_raw['Datetime_DaysDiffRows'].lt(-400))[0][0]
         dividends_raw = dividends_raw.iloc[:index_of_first_gap]
     except: 
         # no gaps found in datetime
@@ -59,8 +58,16 @@ def get_dividend_df_of(symbol):
     dividends_raw = dividends_raw.set_index('Datetime')
     dividends_raw["Symbol"] = symbol
     return dividends_raw
-    
 
+def get_stock_split_df_of(symbol):
+    # returns stock splits
+    stock_splits = fmp.get_dividends_and_stock_splits(symbol, 'historical-price-full/stock_split')
+    # set proper DateTime object as the index of the dataframe
+    stock_splits['Datetime'] = pd.to_datetime(stock_splits['date'])
+    stock_splits = stock_splits.set_index('Datetime')
+    stock_splits["Symbol"] = symbol
+    return stock_splits
+    
 def get_cf_statement_of(symbol):
     # freeCashFlow
     # dividendsPaid
@@ -81,6 +88,11 @@ def get_income_statement_of(symbol):
     incomeStatement["Symbol"] = symbol
     return incomeStatement
 
+def get_latest_price_of(symbol):
+    real_time_price = fmp.get_quote_short(symbol)
+    real_time_price["Symbol"] = symbol
+    return real_time_price
+
 request_counter = 0
 start_time = time.time()
 overall_start_time = time.time()
@@ -90,8 +102,11 @@ download_counter = 0
 failed_to_download_list = []
 
 dividend = get_dividend_df_of("AAPL")
+stock_split = get_stock_split_df_of("AAPL")
 cashflow = get_cf_statement_of("AAPL")
 income = get_income_statement_of("AAPL")
+latest_price = get_latest_price_of("AAPL")
+
 
 
 for ticker in ticker_list:
@@ -112,31 +127,28 @@ for ticker in ticker_list:
             time.sleep(1)
             start_time = time.time()
     
-    # current_dividend  = get_dividend_df_of(ticker)
-    # print (current_dividend)
-    # current_cashflow = get_cf_statement_of(ticker)
-    # current_income = get_income_statement_of(ticker)
-    # dividend = pd.concat([dividend, current_dividend], ignore_index=True, sort=False)
-    # print (dividend)
-    # cashflow = pd.concat([cashflow, current_cashflow], ignore_index=True, sort=False)
-    # income = pd.concat([income, current_income], ignore_index=True, sort=False)
-
     try:
-        current_dividend  = get_dividend_df_of(ticker)
-        current_cashflow = get_cf_statement_of(ticker)
-        current_income = get_income_statement_of(ticker)
-        dividend = pd.concat([dividend, current_dividend], ignore_index=True, sort=False)
-        cashflow = pd.concat([cashflow, current_cashflow], ignore_index=True, sort=False)
-        income = pd.concat([income, current_income], ignore_index=True, sort=False)
-              
+        # current_dividend  = get_dividend_df_of(ticker)
+        current_stock_split = get_stock_split_df_of(ticker)
+        # current_cashflow = get_cf_statement_of(ticker)
+        # current_income = get_income_statement_of(ticker)
+        # current_price = get_latest_price_of(ticker)
+
+        # dividend = pd.concat([dividend, current_dividend], ignore_index=True, sort=False)
+        stock_split = pd.concat([stock_split, current_stock_split], ignore_index=True, sort=False)
+        # cashflow = pd.concat([cashflow, current_cashflow], ignore_index=True, sort=False)
+        # income = pd.concat([income, current_income], ignore_index=True, sort=False)
+        # latest_price = pd.concat([latest_price, current_price], ignore_index=True, sort=False)
     except:
         print ("ERROR")
         print (f"symbol cannot be downloaded check separately: {ticker}")
         failed_to_download_list.append(ticker)
         continue
 
-file_names = [r'\dividend.csv', r'\cashflow.csv', r'\income.csv']
-dataframes = [dividend, cashflow, income]
+file_names = [r'\dividend.csv', r'\stock_split.csv', r'\cashflow.csv', r'\income.csv', r'\price.csv']
+dataframes = [dividend, stock_split, cashflow, income, latest_price]
+
+
 
 for i, dataframe in enumerate(dataframes):
     output_path = r'C:\Users\50000700\Python\Python_repos\dividends\excel_files' + file_names[i]
@@ -148,14 +160,6 @@ with open(r'C:\Users\50000700\Python\Python_repos\dividends\excel_files\failed.c
     for i, symbol in enumerate(failed_to_download_list):
         writer.writerow([i+1, symbol])
 
-# print ("dividends")
-# print (dividend)
-
-# print ("cashflow")
-# print (cashflow)
-
-# print ("income")
-# print (income)
 
 print ("  ****  ")
 print (f"overall runtime {time.time() - overall_start_time}")

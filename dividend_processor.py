@@ -26,7 +26,7 @@ class DividendProcessor(object):
         try:
             # find days difference between rows. Needed to see data gap (for instane AAPL dividends)
             self.dividends_raw['Datetime_DaysDiffRows']=self.dividends_raw['Datetime'].diff().dt.days
-            # find if there is more than 365 days passed between rows. If that happens, delete all rows below
+            # find if there is more than 400 days passed between rows. If that happens, delete all rows below
             index_of_first_gap = np.where(self.dividends_raw['Datetime_DaysDiffRows'].lt(-400))[0][0]
             self.dividends_raw = self.dividends_raw.iloc[:index_of_first_gap]
         except: 
@@ -43,6 +43,7 @@ class DividendProcessor(object):
 
     def get_real_time_price(self):
         self.real_time_price = self.fmp.get_quote_short(self.ticker)
+        print (f"REAL TIME PRICE {self.real_time_price}")
         return self.real_time_price
 
     def get_dividends_per_year(self):
@@ -152,7 +153,7 @@ class DividendProcessor(object):
         return (list_of_DGR)
 
 # list_of_tickers = ["ADP","ADM", "AFL", "ALB", "AOS", "APD", "AROW"]
-list_of_tickers = ["KO"]
+list_of_tickers = ["A"]
 
 request_counter = 0
 start_time = time.time()
@@ -189,7 +190,7 @@ start_time = time.time()
 #     print (f"dividend request processed in: {time.time()-request_start_time}")
 
 
-dataproc = DividendProcessor('CZFS')
+dataproc = DividendProcessor('A')
 print (f"dividends per year {dataproc.get_dividends_per_year()}")
 print (f"div freq per year {dataproc.get_dividend_frequency_of_prev_year()}")
 print (f"div dates of 2020 {dataproc.get_dividend_dates_values_of_year(2020)}")
