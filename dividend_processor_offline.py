@@ -8,12 +8,13 @@ import time
 
 
 class DividendProcessor(object):
-    def __init__(self, ticker, dividends_raw, real_time_price):
+    def __init__(self, ticker, dividends_raw, real_time_price, stock_split):
         self.ticker = ticker.upper()
         self.today = datetime.today()
         self.this_year = self.today.year
         self.dividends_raw = dividends_raw
         self.real_time_price = real_time_price
+        self.stock_split = stock_split
 
     # def get_dividends_raw(self):
     #     # dividend, date  - historical dividend values and dates
@@ -45,6 +46,22 @@ class DividendProcessor(object):
     #     print (f"REAL TIME PRICE {self.real_time_price}")
     #     return self.real_time_price
 
+    def get_split_corrigated_dividends(self):
+        if self.stock_split.empty:
+            return self.dividends_raw
+        else:
+            # create nre column with copy
+            self.dividends_raw['dividend_split_corrigated'] = self.dividends_raw['dividend'].copy()
+            for split_date in self.stock_split.index.tolist():
+                print (split_date)
+                numerator = self.stock_split.loc[self.stock_split.index==split_date, 'numerator'].values[0]
+                denominator = self.stock_split.loc[self.stock_split.index==split_date, 'denominator'].values[0]
+                ratio = numerator / denominator
+                print (f"split date {split_date} numerator {numerator} denominator {denominator}")
+
+                self.dividends_raw.loc[self.dividends_raw.index >= split_date, 'dividend_split_corrigated'] = self.dividends_raw['dividend_split_corrigated'] * ratio
+            return self.dividends_raw
+
     def get_dividends_per_year(self):
         # resample annually and sum dividend values. Note that year end (Dec 31) will be shown for all groups
         dividends_per_year = self.dividends_raw.resample("A")["adjDividend"].sum()
@@ -56,6 +73,28 @@ class DividendProcessor(object):
         mask = (dividends.index > (str(self.this_year-1)+'-01-01')) & (dividends.index <= (str(self.this_year-1)+'-12-31'))
         dividends_filtered=dividends.loc[mask]
         return dividends_filtered.iloc[0]
+
+    def get_dividend_frequency_all_years(self):
+        dividends_freq_filtered = self.dividends_raw.resample("A")["date"].count()
+        years_list = dividends_freq_filtered.index.year.tolist()
+        print (years_list)
+        freq_list = self.dividends_raw.resample("A")["date"].count().tolist()
+        print (freq_list)
+        frequencies = {}
+        for i in range(1,16):
+            frequencies[i] = []
+        for i, year in enumerate(years_list):
+            frequencies[freq_list[i]].append(year)
+        print (frequencies)
+
+
+
+        
+
+        # indexes = dividends_freq_filtered["date"].tolist()
+        # print (indexes)
+
+        return dividends_freq_filtered
 
     def get_dividend_dates_values_of_year(self, year):
         mask = (self.dividends_raw.index > (str(year)+'-01-01')) & (self.dividends_raw.index <= (str(year)+'-12-31'))
@@ -99,8 +138,11 @@ class DividendProcessor(object):
         # get dividend growth per year
         dividend_gr_per_yr = pd.DataFrame()
         # remove current year line as it cannot be complete and we are interested in historical data
-
-        dividend_gr_per_yr['yearlyDividendValue'] = self.dividends_raw.resample("A")["adjDividend"].sum()
+        if self.stock_split.empty:
+            dividend_gr_per_yr['yearlyDividendValue'] = self.dividends_raw.resample("A")["dividend"].sum()
+        else:
+            dividend_gr_per_yr['yearlyDividendValue'] = self.dividends_raw.resample("A")["dividend_split_corrigated"].sum()
+        
         dividend_gr_per_yr['dividendGrowth'] = dividend_gr_per_yr.pct_change()
         dividend_gr_per_yr = dividend_gr_per_yr.sort_index(ascending=False)
 
@@ -141,9 +183,12 @@ class DividendProcessor(object):
         # print (f"first dividend cut year index from today {last_dividend_cut_year}")
         
         for year in years_to_check:
-            mask = (dividend_gr_per_yr.index > (str(self.this_year-year)+'-01-01')) & (dividend_gr_per_yr.index <= (str(self.this_year-1)+'-12-31'))
+            # if 3 years dgr to be calculated we need to go back 4 years to start the analsysis. 
+            # therefore for the year masking we have to use a corrigated year value to get the correct interval
+            year_corrigated = year + 1
+            mask = (dividend_gr_per_yr.index > (str(self.this_year-year_corrigated)+'-01-01')) & (dividend_gr_per_yr.index <= (str(self.this_year-1)+'-12-31'))
             dividends_gr_x_yr=dividend_gr_per_yr.loc[mask]
-            if len(dividends_gr_x_yr.index) == year and last_dividend_cut_year.year < (self.this_year-year) :
+            if len(dividends_gr_x_yr.index) == year_corrigated and last_dividend_cut_year.year < (self.this_year-year_corrigated) :
                 div_current = dividends_gr_x_yr.iloc[0]["yearlyDividendValue"]
                 div_old = dividends_gr_x_yr.iloc[-1]["yearlyDividendValue"]
                 cagr = (((div_current / div_old) ** (1/year)) - 1) * 100

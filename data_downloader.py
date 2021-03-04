@@ -71,7 +71,7 @@ def get_stock_split_df_of(symbol):
 def get_cf_statement_of(symbol):
     # freeCashFlow
     # dividendsPaid
-    cfStatement = fmp.get_data_from_api('ABT', 'cash-flow-statement')
+    cfStatement = fmp.get_data_from_api(symbol, 'cash-flow-statement')
     # set proper DateTime object as the index of the dataframe
     cfStatement['Datetime'] = pd.to_datetime(cfStatement['date'])
     cfStatement = cfStatement.set_index('Datetime')
@@ -81,7 +81,7 @@ def get_cf_statement_of(symbol):
 def get_income_statement_of(symbol):
     # eps
     # epsdiluted
-    incomeStatement = fmp.get_data_from_api('ABT', 'income-statement')
+    incomeStatement = fmp.get_data_from_api(symbol, 'income-statement')
     # set proper DateTime object as the index of the dataframe
     incomeStatement['Datetime'] = pd.to_datetime(incomeStatement['date'])
     incomeStatement = incomeStatement.set_index('Datetime')
@@ -99,14 +99,18 @@ overall_start_time = time.time()
 download_counter = 0
 
 # ticker_list = ["ADP","ADM", "AFL", "AAPL", "FASZ", "GECI"]
-failed_to_download_list = []
+
+failed = {}
+operation_list = ["dividend", "cf_statement", "income_statement", "stock_split", "price"]
+for operation in operation_list:
+    failed[operation] = []
+
 
 dividend = get_dividend_df_of("AAPL")
 stock_split = get_stock_split_df_of("AAPL")
 cashflow = get_cf_statement_of("AAPL")
 income = get_income_statement_of("AAPL")
 latest_price = get_latest_price_of("AAPL")
-
 
 
 for ticker in ticker_list:
@@ -127,23 +131,47 @@ for ticker in ticker_list:
             time.sleep(1)
             start_time = time.time()
     
-    try:
-        # current_dividend  = get_dividend_df_of(ticker)
-        current_stock_split = get_stock_split_df_of(ticker)
-        # current_cashflow = get_cf_statement_of(ticker)
-        # current_income = get_income_statement_of(ticker)
-        # current_price = get_latest_price_of(ticker)
 
-        # dividend = pd.concat([dividend, current_dividend], ignore_index=True, sort=False)
-        stock_split = pd.concat([stock_split, current_stock_split], ignore_index=True, sort=False)
-        # cashflow = pd.concat([cashflow, current_cashflow], ignore_index=True, sort=False)
-        # income = pd.concat([income, current_income], ignore_index=True, sort=False)
-        # latest_price = pd.concat([latest_price, current_price], ignore_index=True, sort=False)
+    try:
+        current_dividend  = get_dividend_df_of(ticker)
+        dividend = pd.concat([dividend, current_dividend], ignore_index=True, sort=False)
     except:
-        print ("ERROR")
-        print (f"symbol cannot be downloaded check separately: {ticker}")
-        failed_to_download_list.append(ticker)
-        continue
+        # print ("ERROR")
+        # print (f"symbol cannot be downloaded check separately: {ticker}")
+        failed["dividend"].append(ticker)
+
+    # try:
+    #     current_cashflow = get_cf_statement_of(ticker)
+    #     cashflow = pd.concat([cashflow, current_cashflow], ignore_index=True, sort=False)
+    # except:
+    #     # print ("ERROR")
+    #     # print (f"symbol cannot be downloaded check separately: {ticker}")
+    #     failed["cf_statement"].append(ticker)
+
+    # try:
+    #     current_income = get_income_statement_of(ticker)
+    #     income = pd.concat([income, current_income], ignore_index=True, sort=False)
+    # except:
+    #     # print ("ERROR")
+    #     # print (f"symbol cannot be downloaded check separately: {ticker}")
+    #     failed["income_statement"].append(ticker)
+
+    # try:
+    #     current_stock_split = get_stock_split_df_of(ticker)
+    #     stock_split = pd.concat([stock_split, current_stock_split], ignore_index=True, sort=False)
+    # except:
+    #     # print ("ERROR")
+    #     # print (f"symbol cannot be downloaded check separately: {ticker}")
+    #     failed["stock_split"].append(ticker)
+
+    # try:
+    #     current_price = get_latest_price_of(ticker)
+    #     latest_price = pd.concat([latest_price, current_price], ignore_index=True, sort=False)
+    # except:
+    #     # print ("ERROR")
+    #     # print (f"symbol cannot be downloaded check separately: {ticker}")
+    #     failed["price"].append(ticker)
+    
 
 file_names = [r'\dividend.csv', r'\stock_split.csv', r'\cashflow.csv', r'\income.csv', r'\price.csv']
 dataframes = [dividend, stock_split, cashflow, income, latest_price]
@@ -156,13 +184,15 @@ for i, dataframe in enumerate(dataframes):
 
 with open(r'C:\Users\50000700\Python\Python_repos\dividends\excel_files\failed.csv', 'w', newline='') as failed_file:
     writer = csv.writer(failed_file)
-    writer.writerow(["No", "Symbol"])
-    for i, symbol in enumerate(failed_to_download_list):
-        writer.writerow([i+1, symbol])
+    writer.writerow(["No", "Symbol", "Operation"])
+    for failed_operation in failed:
+
+        for i, symbol in enumerate(failed[failed_operation]):
+            writer.writerow([i+1, symbol, failed_operation])
 
 
 print ("  ****  ")
 print (f"overall runtime {time.time() - overall_start_time}")
-print (f"symbols couldn't be downloaded : {failed_to_download_list}")
+print (f"symbols couldn't be downloaded : {failed}")
 
 
