@@ -41,13 +41,13 @@ df = df.dropna(subset=['TickerSector'])
 symbols = df['TickerSymbol'].tolist()
 
 # symbols = ["A","AAN","AAPL","ABBV","ABC","ABM","ABR","ABT","ACC","ACN","ADC","ADI","ADM","ADP","AEE","AEL","AEM","AEP","AES","AFG","AFL","AGCO","AGM","AGO","AIRC","AIT","AIZ","AJG","AL","ALB","ALE","ALG","ALL","ALLE","ALLY","ALRS","ALTA","AMGN","AMNB","AMP","AMSF","AMT","ANDE","ANTM","AON","AOS","APD","APH","APLO","APOG","AQN","ARE","AROW","ARTNA","ASB","ASH","ATLO","ATO","ATR","ATRI","ATVI","AUB","AUBN","AVA","AVB","AVGO","AVNT","AVT","AVY","AWK","AWR","AXP","AXS","BAC","BAH","BAM","BANF","BANR","BBY","BC","BCPC","BDL","BDX","BEN","BEP","BF-B","BHB","BIP","BK","BKH","BKSC","BKUTK","BLK","BMI","BMRC","BMTC","BMY","BOKF","BORT","BPOP","BPY","BR","BRC","BRO","BSRR","BUSE","BWFG"]
-
+# symbols = ["A","AAN","ABBV","ABC"]
 # define empty dataframes
-dividends = pd.DataFrame()
-splits = pd.DataFrame()
-cashflows = pd.DataFrame()
-incomes = pd.DataFrame()
-prices = pd.DataFrame()
+dividends = None
+splits = None
+cashflows = None
+incomes = None
+prices = None
 
 dataframes = {"dividends" : dividends,
               "splits"    : splits,
@@ -130,7 +130,10 @@ async def download_one_item(session, semaphore, symbol, operation):
                 df = df.set_index('Datetime')
 
         df["Symbol"] = symbol # add symbol column
-        dataframes[operation] = pd.concat([dataframes[operation], df], ignore_index=True, sort=False)
+        if symbol == "AAPL": # AAPL is downloaded before everything separately to cfreate column headers correctly in dataframes
+            dataframes[operation] = df
+        else:
+            dataframes[operation] = pd.concat([dataframes[operation], df], ignore_index=True, sort=False)
 
         # print (f"symbol: {symbol} operation: {operation} status: {response.status}")
         # print("Status:", response.status)
@@ -158,11 +161,24 @@ async def bulk_donwload_symbols():
             # print (symbol)
             for operation in operation_list:
                 # tasks.append(download_one(url, session, semaphore))
-                tasks.append(download_one_item(session, semaphore, symbol, operation))
+                if symbol != "AAPL": # AAPL is downloaded separately before everything to set the columns on the dataframes
+                    tasks.append(download_one_item(session, semaphore, symbol, operation))
         await asyncio.gather(*tasks)
 
+
+async def download_AAPL():
+    async with ClientSession() as session:
+        tasks = []
+        semaphore = asyncio.Semaphore(value=1) # define to use ONE token only. One call at a time and release token only after certain waiting time
+        for operation in operation_list:
+            tasks.append(download_one_item(session, semaphore, "AAPL", operation))
+        await asyncio.gather(*tasks)
+
+
+loop_prepare = asyncio.get_event_loop()
+loop_prepare.run_until_complete(download_AAPL()) # download AAPL to set proper column headers
+
 loop = asyncio.get_event_loop()
-# loop.run_until_complete(bulk_donwload_url())
 loop.run_until_complete(bulk_donwload_symbols())
 print (f"number of requests {len(request_time_list)}")
 # print (request_time_list)
@@ -174,7 +190,7 @@ for operation in operation_list:
     output_main = r"C:\Users\50000700\Python\Python_repos\dividends\excel_files\\"
     output_end = r'.csv'
     output_path = output_main + operation + output_end
-    dataframes[operation].to_csv(output_path, mode='w', header=not os.path.exists(output_path))
+    dataframes[operation].to_csv(output_path, mode='w')
 
 with open(r'C:\Users\50000700\Python\Python_repos\dividends\excel_files\failed.csv', 'w', newline='') as failed_file:
     writer = csv.writer(failed_file)
