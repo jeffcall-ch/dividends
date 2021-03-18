@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import ClientSession
 import asyncio
 import json 
+import copy
 
 python_repo_home_folder = pathlib.Path.home() / "Python" / "Python_repos" / "dividends"
 dripinvesting_folder = python_repo_home_folder / "excel_files" / "dripinvesting"
@@ -48,6 +49,7 @@ splits = None
 cashflows = None
 incomes = None
 prices = None
+retry_counter = 0 # retry dowloading data where HTML response was 429 - too many queries
 
 dataframes = {"dividends" : dividends,
               "splits"    : splits,
@@ -87,10 +89,10 @@ async def download_one_item(session, semaphore, symbol, operation):
     if len(request_time_list) % 100 == 0:
         print (len(request_time_list))
     # print (f"diff since last request {diff_since_last_request}")
-    if diff_since_last_request < 0.053:
-        await asyncio.sleep(0.053 - diff_since_last_request) #sleep
-    if len(request_time_list) % 4 == 0:
-        await asyncio.sleep(0.14) # Nginx web server of FMP has an interval of 0.05 with a burst of 5 to protect against any server attack. Testing a lot shows working: 0.053 diff and 0.14 waiting after every 4th request
+    if diff_since_last_request < 0.05:
+        await asyncio.sleep(0.05 - diff_since_last_request) #sleep
+    # if len(request_time_list) % 5 == 0:
+    #     await asyncio.sleep(0.01) # Nginx web server of FMP has an interval of 0.05 with a burst of 5 to protect against any server attack. Testing a lot shows working: 0.053 diff and 0.14 waiting after every 4th request
     request_time_list.append(time.monotonic() - START)
     semaphore.release() # release semaphore to be able to start new request
     url = url_main[0] + url_mid[operation] + symbol + url_end
@@ -102,6 +104,8 @@ async def download_one_item(session, semaphore, symbol, operation):
         response = await session.get(url)
         resp_text = await response.text()
         # print (url)
+        if retry_counter > 0:
+            print (f'retry_counter: {retry_counter} symbol: {symbol} operation: {operation}  html_respone: {response.status} ')
         # print("Status:", response.status)
         if response.status != 200:
             failed["html_response"].append([symbol, operation, response.status])
@@ -165,6 +169,16 @@ async def bulk_donwload_symbols():
                     tasks.append(download_one_item(session, semaphore, symbol, operation))
         await asyncio.gather(*tasks)
 
+async def bulk_donwload_symbol_operation_pairs(symbol_operation_pairs):
+    async with ClientSession() as session:
+        tasks = []
+        semaphore = asyncio.Semaphore(value=1) # define to use ONE token only. One call at a time and release token only after certain waiting time
+        for pair in symbol_operation_pairs:
+            current_symbol = pair[0]
+            current_operation = pair[1]
+            tasks.append(download_one_item(session, semaphore, current_symbol, current_operation))
+        await asyncio.gather(*tasks)
+
 
 async def download_AAPL():
     async with ClientSession() as session:
@@ -185,6 +199,20 @@ print (f"number of requests {len(request_time_list)}")
 # print (url_main_list)
 print (f"finished in  {time.monotonic() - START}")
 # print (failed)
+
+
+
+while (len(failed["html_response"]) > 0) and (retry_counter < 10):
+    retry_counter += 1
+    print (f'retry counter: {retry_counter} failed-html_reponse len: {len(failed["html_response"])} ')
+    print (failed["html_response"])
+    # deep copy failed["html_response"] then make failed["html_response"] empty
+    symbol_operation_pairs = copy.deepcopy(failed["html_response"])
+    failed["html_response"] = []  # emptying the list is needed  
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(bulk_donwload_symbol_operation_pairs(symbol_operation_pairs))
+
+print (f"finished in  {time.monotonic() - START}")
 
 for operation in operation_list:
     output_main = r"C:\Users\50000700\Python\Python_repos\dividends\excel_files\\"
