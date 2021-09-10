@@ -6,6 +6,8 @@ import logging
 import sys
 from SP500_div_yield_crawler import SP500
 
+pd.options.mode.chained_assignment = None  # default='warn'
+
 def setup_custom_logger(name):
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
@@ -34,7 +36,7 @@ price = pd.read_csv(r'C:\Users\50000700\Python\Python_repos\dividends\excel_file
 # sp500 = SP500()
 # sp500_div_yield = sp500.get_dividend_yield()
 
-sp500_div_yield = 1.47
+sp500_div_yield = 1.48
 div_yield_min = 1.5 * sp500_div_yield
 div_yield_max = 5 * sp500_div_yield
 # div_yield sweet spot is between 4% and 7%
@@ -43,12 +45,12 @@ div_yield_max = 5 * sp500_div_yield
 sweet_low = 4
 sweet_high = 7
 sweet_total_return = 9
-minimum_years_of_div_increase = 5
+minimum_years_of_div_increase = 10
 
 
-if div_yield_min <= sweet_low and div_yield_max >= sweet_low:
+if div_yield_min <= sweet_low and sweet_low <= div_yield_max:
     div_yield_min = sweet_low
-if div_yield_min <= sweet_high and div_yield_max >= sweet_high:
+if div_yield_min <= sweet_high and sweet_high <= div_yield_max:
     div_yield_max = sweet_high
 
 print (f"div_yield_min= {div_yield_min}   div_yield_max= {div_yield_max}")
@@ -56,17 +58,19 @@ print (f"div_yield_min= {div_yield_min}   div_yield_max= {div_yield_max}")
 def is_dgr_5yr_high_enough(div_yield, dgr_3yr_5yr):
     dgr_year_checks = [3,5,10,15]
     covered_years = dgr_year_checks[len(dgr_3yr_5yr)-1]
+    print(f'ticker: {ticker} dgr_3yr_5yr: {dgr_3yr_5yr}')
+    dgr_5yr = dgr_3yr_5yr[5]
 
     if minimum_years_of_div_increase > covered_years:
         return False
 
-    if (div_yield_min <= div_yield) and (div_yield <= div_yield_max) and (dgr_3yr_5yr[1] >= (sweet_total_return - div_yield)):
+    if (div_yield_min <= div_yield) and (div_yield <= div_yield_max) and (dgr_5yr >= (sweet_total_return - div_yield)):
         return True 
     else:
         return False
     
-tickers = dividend.Symbol.unique()
-# tickers = ['AAPL']
+# tickers = dividend.Symbol.unique()
+tickers = ['LMT']
 
 failed_to_process_list = []
 structured_data = {}
@@ -83,27 +87,54 @@ for ticker in tickers:
 
     current_divproc = DivProc(ticker, current_div_raw, current_price, current_split)
            
-    try:
-        # print (ticker)
-        dividends_per_year = current_divproc.get_dividends_per_year()
-        forward_dividend = current_divproc.get_forward_dividend()
-        # print(forward_dividend)
-        dividend_yield = current_divproc.get_dividend_yield()
-        # print(dividend_yield)
-        dividend_growth_per_year = current_divproc.get_dividend_growth_per_year()
-        # print(dividend_growth_per_year)
-        dgr_3_5_yr = current_divproc.get_DGR_3_5yr()
-        # print (dgr_3_5_yr)
-        
-        if ( is_dgr_5yr_high_enough(dividend_yield, dgr_3_5_yr) ):
-            first_selection.append( [ticker, dividend_yield, dgr_3_5_yr[2]] )
-            print (f"first selection append {ticker}")
-            #     structured_data[ticker] = [current_div_raw, dividends_per_year, dividend_yield, dividend_growth_per_year, dgr_3_5_yr]
-            #     print (f" ticker {ticker} sp500 div yield {sp500_div_yield}  current div yield {dividend_yield}  dgr_3_5_yr {dgr_3_5_yr}")
+    # print (ticker)
+    dividends_per_year = current_divproc.get_dividends_per_year()
+    forward_dividend = current_divproc.get_forward_dividend()
+    # print(forward_dividend)
+    dividend_yield = current_divproc.get_dividend_yield()
+    # print(dividend_yield)
+    dividend_growth_per_year = current_divproc.get_dividend_growth_per_year()
+    # print(dividend_growth_per_year)
+    dgr_3_5_yr = current_divproc.get_DGR_3_5yr()
+    # print (dgr_3_5_yr)
+    
+    if ( is_dgr_5yr_high_enough(dividend_yield, dgr_3_5_yr) ):
+        first_selection.append( [ticker, dividend_yield, dgr_3_5_yr] )
+        print (f"first selection append {ticker}")
+        #     structured_data[ticker] = [current_div_raw, dividends_per_year, dividend_yield, dividend_growth_per_year, dgr_3_5_yr]
+        #     print (f" ticker {ticker} sp500 div yield {sp500_div_yield}  current div yield {dividend_yield}  dgr_3_5_yr {dgr_3_5_yr}")
 
-    except Exception as Argument:  
-        failed_to_process_list.append(ticker)
-        logger.info(Argument)
+    
+
+# for ticker in tickers:   
+#     current_div_raw = dividend[dividend["Symbol"]==ticker]
+#     current_div_raw["Datetime"] = pd.to_datetime(current_div_raw['date'])
+#     current_div_raw = current_div_raw.set_index('Datetime')
+#     current_price = price[price["Symbol"]==ticker]
+#     current_split = stock_split[stock_split["Symbol"]==ticker]
+
+#     current_divproc = DivProc(ticker, current_div_raw, current_price, current_split) 
+#     try:
+#         # print (ticker)
+#         dividends_per_year = current_divproc.get_dividends_per_year()
+#         forward_dividend = current_divproc.get_forward_dividend()
+#         # print(forward_dividend)
+#         dividend_yield = current_divproc.get_dividend_yield()
+#         # print(dividend_yield)
+#         dividend_growth_per_year = current_divproc.get_dividend_growth_per_year()
+#         # print(dividend_growth_per_year)
+#         dgr_3_5_yr = current_divproc.get_DGR_3_5yr()
+#         # print (dgr_3_5_yr)
+        
+#         if ( is_dgr_5yr_high_enough(dividend_yield, dgr_3_5_yr) ):
+#             first_selection.append( [ticker, dividend_yield, dgr_3_5_yr] )
+#             print (f"first selection append {ticker}")
+#             #     structured_data[ticker] = [current_div_raw, dividends_per_year, dividend_yield, dividend_growth_per_year, dgr_3_5_yr]
+#             #     print (f" ticker {ticker} sp500 div yield {sp500_div_yield}  current div yield {dividend_yield}  dgr_3_5_yr {dgr_3_5_yr}")
+
+#     except Exception as Argument:  
+#         failed_to_process_list.append([ticker, Argument])
+#         logger.info(Argument)
      
 with open(r'C:\Users\50000700\Python\Python_repos\dividends\excel_files\failed_to_process.csv', 'w', newline='') as failed_file:
     writer = csv.writer(failed_file)
